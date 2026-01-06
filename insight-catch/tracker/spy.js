@@ -9,7 +9,7 @@
     const CONFIG = {
         threshold: 20, // Mouse yukarıdan kaç piksel yaklaşınca tetiklensin?
         debug: true,   // Konsola log basayım mı?
-        apiUrl: 'http://localhost:3000/api/capture' // Next.js API adresi
+        apiUrl: 'https://insightcatch.vercel.app/' // Next.js API adresi
     };
 
     let hasTriggered = false; // Kullanıcıyı spamlamamak için bayrak
