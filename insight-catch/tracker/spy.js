@@ -9,17 +9,27 @@
     const CONFIG = {
         threshold: 20, // Mouse yukarıdan kaç piksel yaklaşınca tetiklensin?
         debug: true,   // Konsola log basayım mı?
-        apiUrl: 'https://insightcatch.vercel.app/api/capture' // Next.js API adresi
+        apiUrl: 'https://insightcatch.vercel.app/api/capture', // Next.js API adresi
+        minTime: 10,   // Saniye
+        minScroll: 50  // Yüzde
     };
 
     let hasTriggered = false; // Kullanıcıyı spamlamamak için bayrak
+    let startTime = Date.now();
+    let maxScroll = 0;
 
     // Başlatıcı
     function init() {
-        if (CONFIG.debug) console.log("🕵️ InsightCatch Ajanı göreve hazır.");
+        if (CONFIG.debug) console.log(`🕵️ InsightCatch Ajanı göreve hazır. (Smart Mode: >${CONFIG.minTime}s OR >${CONFIG.minScroll}%)`);
 
         // Masaüstü için çıkış niyeti (Mouse yukarı kaçarsa)
         document.addEventListener('mouseleave', handleExitIntent);
+
+        // Scroll takibi
+        document.addEventListener('scroll', () => {
+            const scrollPercentage = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100;
+            if (scrollPercentage > maxScroll) maxScroll = scrollPercentage;
+        });
 
         // Mobil için (Şimdilik basit bir scroll mantığı - V2'de geliştireceğiz)
         // document.addEventListener('scroll', handleScrollIntent);
@@ -28,6 +38,16 @@
     // Olay Yakalayıcı
     function handleExitIntent(e) {
         if (hasTriggered) return;
+
+        // Smart Trigger Kontrolleri
+        const timeSpent = (Date.now() - startTime) / 1000; // Saniye cinsinden
+        const deepScroll = maxScroll > CONFIG.minScroll;
+        const longStay = timeSpent > CONFIG.minTime;
+
+        if (!deepScroll && !longStay) {
+            if (CONFIG.debug) console.log(`⏳ Henüz erken: ${Math.floor(timeSpent)}sn, %${Math.floor(maxScroll)} scroll.`);
+            return;
+        }
 
         // Eğer mouse tarayıcı penceresinin üst kısmına (adres çubuğuna) giderse
         if (e.clientY < CONFIG.threshold) {
