@@ -59,37 +59,113 @@
     function triggerAction() {
         hasTriggered = true;
         if (CONFIG.debug) console.log("🚀 Exit Intent Tespit Edildi! Aksiyon alınıyor...");
+        createModal();
+    }
 
-        // 1. Basit bir HTML Modal Enjekte Et (Shadow DOM kullanmıyoruz şimdilik)
+    function getQuestionByContext() {
+        const path = window.location.pathname; // URL'in devamı (örn: /fiyatlar)
+
+        // 1. Ödeme Sayfası (En Kritik Yer)
+        if (path.includes('checkout') || path.includes('sepet') || path.includes('cart')) {
+            return {
+                title: "Ödemede bir sorun mu var? 💳",
+                options: ["Kargo çok pahalı", "Güvenemedim", "Teknik hata aldım", "Kupon kodum çalışmadı"]
+            };
+        }
+
+        // 2. Fiyatlandırma Sayfası
+        if (path.includes('pricing') || path.includes('fiyat')) {
+            return {
+                title: "Fiyatlar aklına yatmadı mı? 🤔",
+                options: ["Bütçemi aşıyor", "Rakipler daha ucuz", "Özellikler yetersiz", "Sadece meraktan baktım"]
+            };
+        }
+
+        // 3. Blog / İçerik Sayfası
+        if (path.includes('blog') || path.includes('guide')) {
+            return {
+                title: "Aradığın cevabı bulamadın mı? 📚",
+                options: ["İçerik yetersiz", "Çok uzun/karışık", "Yanlış yere gelmişim", "Farklı bir şey arıyordum"]
+            };
+        }
+
+        // 4. Varsayılan (Anasayfa vs.)
+        return {
+            title: "Gitmeden önce küçük bir soru... 👋",
+            options: ["Aradığımı bulamadım", "Fiyatları görmek istedim", "Tasarımı inceliyordum", "Diğer"]
+        };
+    }
+
+    function createModal() {
+        const context = getQuestionByContext();
+
+        // Seçenekleri HTML butonlarına çevir
+        const optionsHtml = context.options.map(opt =>
+            `<button class="ic-option-btn" style="margin:5px; padding:8px; border:1px solid #ddd; background:white; cursor:pointer; width:100%; border-radius:5px;">${opt}</button>`
+        ).join('');
+
         const modal = document.createElement('div');
         modal.id = 'insight-catch-modal';
-        modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center;
-            z-index: 999999; font-family: sans-serif;
-        `;
-
         modal.innerHTML = `
-            <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-                <h2 style="margin-top: 0; color: #333;">Gitmeden önce küçük bir soru... 👋</h2>
-                <p style="color: #666; margin-bottom: 20px;">Tam olarak aradığını bulamadın mı?</p>
+        <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:99999;">
+            <div style="background:white; padding:25px; border-radius:12px; max-width:400px; width:90%; box-shadow:0 10px 30px rgba(0,0,0,0.2); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <h3 style="margin-top:0; color:#111; font-size:18px; text-align:center;">${context.title}</h3>
                 
-                <textarea id="ic-feedback" placeholder="Buraya yazabilirsin..." style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                <div id="ic-options-container" style="margin-top:15px;">
+                    ${optionsHtml}
+                </div>
+
+                <textarea id="ic-text-feedback" placeholder="Lütfen kısaca açıkla..." style="display:none; width:100%; margin-top:10px; padding:10px; border:1px solid #ddd; border-radius:5px; min-height:60px;"></textarea>
                 
-                <button id="ic-submit" style="background: #2563EB; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">Gönder</button>
-                <button id="ic-close" style="background: transparent; border: none; color: #999; margin-left: 10px; cursor: pointer;">Kapat</button>
+                <div style="margin-top:15px; text-align:right;">
+                    <button id="ic-close" style="background:transparent; border:none; color:#666; cursor:pointer; margin-right:10px;">Vazgeç</button>
+                    <button id="ic-send" style="background:#2563EB; color:white; border:none; padding:8px 20px; border-radius:6px; cursor:pointer; font-weight:600;">Gönder</button>
+                </div>
+                
+                <a href="https://insightcatch.vercel.app" target="_blank" style="display:block; text-align:center; margin-top:15px; font-size:10px; color:#aaa; text-decoration:none;">
+                    Powered by InsightCatch ⚡
+                </a>
             </div>
-        `;
+        </div>`;
 
         document.body.appendChild(modal);
 
-        // Event Listeners (Butonlar için)
-        document.getElementById('ic-close').onclick = () => removeModal(modal);
-        document.getElementById('ic-submit').onclick = () => {
-            const feedback = document.getElementById('ic-feedback').value;
-            const submitBtn = document.getElementById('ic-submit');
+        // --- Etkileşim Kodları ---
+        let selectedOption = "";
 
-            // Butonu 'Gönderiliyor...' yap
+        // Seçenek butonu tıklama
+        const optionBtns = modal.querySelectorAll('.ic-option-btn');
+        optionBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                // Diğerlerinin stilini sıfırla
+                optionBtns.forEach(b => b.style.borderColor = "#ddd");
+                optionBtns.forEach(b => b.style.background = "white");
+
+                // Seçileni boya
+                this.style.borderColor = "#2563EB";
+                this.style.background = "#EFF6FF";
+
+                selectedOption = this.innerText;
+
+                // Textarea göster
+                document.getElementById('ic-text-feedback').style.display = 'block';
+            });
+        });
+
+        // Kapat
+        document.getElementById('ic-close').onclick = () => removeModal(modal);
+
+        // Gönder
+        document.getElementById('ic-send').onclick = () => {
+            const textFeedback = document.getElementById('ic-text-feedback').value;
+            const finalFeedback = selectedOption + (textFeedback ? ": " + textFeedback : "");
+
+            if (!selectedOption && !textFeedback) {
+                alert("Lütfen bir seçenek seçin veya yazın.");
+                return;
+            }
+
+            const submitBtn = document.getElementById('ic-send');
             submitBtn.innerText = "Gönderiliyor...";
             submitBtn.disabled = true;
 
@@ -100,15 +176,15 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    feedback: feedback,
-                    url: window.location.href, // Hangi sayfadan geldi?
+                    feedback: finalFeedback,
+                    url: window.location.href,
                     timestamp: new Date().toISOString()
                 })
             })
                 .then(response => response.json())
                 .then(data => {
-                    console.log("✅ Sunucu Cevabı:", data);
-                    alert("Geri bildiriminiz alındı!");
+                    if (CONFIG.debug) console.log("✅ Sunucu Cevabı:", data);
+                    alert("Teşekkürler! Geri bildiriminiz alındı.");
                     removeModal(modal);
                 })
                 .catch(error => {
